@@ -1,7 +1,7 @@
 all: sim
 
-sim: test.v tb.v
-	iverilog -o sim test.v tb.v
+sim: 
+	iverilog -c cmd.txt -o sim
 
 run: sim
 	vvp sim

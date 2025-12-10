@@ -1,0 +1,4 @@
+- [ ] 8 bit adder
+- [ ] subtraction
+- [ ] 8-bit multiplexer
+- [ ] ALU
