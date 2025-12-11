@@ -1,11 +1,8 @@
-all: sim
+TB ?= add_tb
 
-sim: 
-	iverilog -c cmd.txt -o sim
-
-run: sim
+run: 
+	iverilog -s $(TB) -c cmd.txt -o sim
 	vvp sim
 
 clean:
 	rm -f sim
-
