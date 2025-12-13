@@ -1,17 +1,8 @@
-module mux(
-    output [7:0] result,
-    input [7:0] a,
-    input [7:0] b,
-    input op
-);
-    assign result = (a & ~{8{op}}) | (b & {8{op}});
-endmodule;
-
 module alu(
     output [7:0] result,
     input [7:0] a,
     input [7:0] b,
-    input op // 0 - addition, 1 - subtraction
+    input [2:0] op // 0 - addition, 1 - subtraction, 2 - passthrough
 );
 
     wire [7:0] sum;
@@ -32,7 +23,18 @@ module alu(
         .b(b)
     );
 
-    mux m(result, sum, difference, op);
+    mux_8way m(
+        .out(result), 
+        .a(sum), 
+        .b(difference),
+        .c(b),
+        .d(8'd0),
+        .e(8'd0),
+        .f(8'd0),
+        .g(8'd0),
+        .h(8'd0),
+        .slct(op)
+    );
 endmodule
 
 

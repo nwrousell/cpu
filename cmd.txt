@@ -1,3 +1,5 @@
 src/add.v
 src/sub.v
+src/mux.v
 src/alu.v
+src/cpu.v
