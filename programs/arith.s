@@ -1,0 +1,3 @@
+LDA 7
+LDB 3
+ADDB

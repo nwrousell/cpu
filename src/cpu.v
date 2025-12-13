@@ -75,7 +75,7 @@ module cpu(
     initial begin
         a = 8'd0;
         b = 8'd0;
-        pc = 8'd1;
+        pc = 8'd0;
         addr = 8'd0;
         instr = 8'd0;
         instr_state = `FETCH0;
@@ -218,24 +218,7 @@ module memory_mock (
     end
 
     initial begin
-        // leave null byte empty
-        mem[0] = 8'd0;
-
-        // LDA 7
-        mem[1] = `INSTR_LDA;
-        mem[2] = 8'd4;
-
-        // LDB 100
-        mem[3] = `INSTR_LDB;
-        mem[4] = 8'd100;
-
-        // ADDB
-        mem[5] = `INSTR_ADD_B;
-
-        // SUB 20
-        mem[6] = `INSTR_SUB_IMD;
-        mem[7] = 8'd20;
-
+        $readmemh("prog.mem", mem);
     end
 
 endmodule
