@@ -7,12 +7,12 @@
 // bus select
 `define A_OUT 3'd0
 `define B_OUT 3'd1
-`define ALU_OUT 3'd2
+`define UNUSED2 3'd2
 `define MEM_OUT 3'd3
 `define INSTR_OUT 3'd4
 `define ADDR_OUT 3'd5
 `define PC_OUT 3'd6
-`define UNUSED 3'd7
+`define UNUSED1 3'd7
 
 // ALU ops
 `define ALU_ADD 3'd0
@@ -20,13 +20,19 @@
 `define ALU_PASSTHROUGH 3'd2
 
 // instructions
-`define INSTR_LDA 3'd0
+`define INSTR_LDA 8'd0
+`define INSTR_LDB 8'd1
+`define INSTR_ADD_IMD 8'd2
+`define INSTR_ADD_B 8'd3
+`define INSTR_SUB_IMD 8'd4
+`define INSTR_SUB_B 8'd5
 
 module cpu(
     input wire clk
 );
     // registers
-    reg [7:0] a, b, pc, instr, addr;
+    reg signed [7:0] a, b;
+    reg [7:0] pc, instr, addr;
 
     // wires
     wire [7:0] bus, alu_out, mem_data;
@@ -37,7 +43,7 @@ module cpu(
     // control signals
     reg [2:0] bus_slct;
     reg [2:0] alu_op;
-    reg ld_a, ld_b, ld_addr, ld_instr, incr_pc;
+    reg ld_a, ld_b, ld_addr, ld_instr, incr_pc, reset_instr_state;
 
     // components
     alu alu_inst(
@@ -57,7 +63,7 @@ module cpu(
         .out(bus),
         .a(a),
         .b(b),
-        .c(alu_out),
+        .c(8'd0),
         .d(mem_data),
         .e(instr),
         .f(addr),
@@ -80,6 +86,7 @@ module cpu(
         ld_addr = 0;
         ld_instr = 0;
         incr_pc = 0;
+        reset_instr_state = 0;
     end
 
     // compute control signals based on instr reg/instr_state (even though they're regs, will synthesize to just wires)
@@ -91,7 +98,8 @@ module cpu(
         ld_instr = 0;
         incr_pc = 0;
         bus_slct = `A_OUT;
-        alu_op = `ALU_ADD;
+        alu_op = `ALU_PASSTHROUGH;
+        reset_instr_state = 0;
 
         case (instr_state)
             `FETCH0: begin
@@ -110,10 +118,29 @@ module cpu(
 
             `INSTR0: begin
                 case (instr)
+                    `INSTR_ADD_IMD,
+                    `INSTR_SUB_IMD,
+                    `INSTR_LDB,
                     `INSTR_LDA: begin
-                        // pc -> addr
+                        // pc -> addr (mem_data becomes first operand)
                         bus_slct = `PC_OUT;
                         ld_addr = 1;
+                    end
+
+                    `INSTR_ADD_B: begin
+                        // a + b -> a
+                        bus_slct = `B_OUT;
+                        ld_a = 1;
+                        alu_op = `ALU_ADD;
+                        reset_instr_state = 1;
+                    end
+
+                    `INSTR_SUB_B: begin
+                        // a - b -> a
+                        bus_slct = `B_OUT;
+                        ld_a = 1;
+                        alu_op = `ALU_SUB;
+                        reset_instr_state = 1;
                     end
                 endcase
             end
@@ -121,9 +148,33 @@ module cpu(
             `INSTR1: begin
                 case (instr)
                     `INSTR_LDA: begin
-                        // mem -> 1
+                        // mem -> a
                         bus_slct = `MEM_OUT;
                         ld_a = 1;
+                        incr_pc = 1;
+                    end
+
+                    `INSTR_LDB: begin
+                        // mem -> b
+                        bus_slct = `MEM_OUT;
+                        ld_b = 1;
+                        incr_pc = 1;
+                    end
+
+                    `INSTR_ADD_IMD: begin
+                        // a + mem -> a
+                        bus_slct = `MEM_OUT;
+                        alu_op = `ALU_ADD;
+                        ld_a = 1;
+                        incr_pc = 1;
+                    end
+
+                    `INSTR_SUB_IMD: begin
+                        // a - mem -> a
+                        bus_slct = `MEM_OUT;
+                        alu_op = `ALU_SUB;
+                        ld_a = 1;
+                        incr_pc = 1;
                     end
                 endcase
             end
@@ -132,11 +183,12 @@ module cpu(
 
     // latch registers on rising edge
     always @(posedge clk) begin
-        instr_state <= instr_state + 1;
-
-        // update registers (reading from bus)
+        instr_state <= reset_instr_state ? 0 : instr_state + 1;
+            
+        // update registers
         if (ld_a)
-            a <= bus;
+            a <= alu_out;
+
         if (ld_b)
             b <= bus;
         if (ld_addr)
@@ -148,6 +200,8 @@ module cpu(
             pc <= pc + 1;
 
         $display("t=%0d | instr_state=%d | bus_slct=%d | bus=%d | ld_addr=%d | ld_instr=%d | ld_a=%d | a=%d | b=%d | pc=%d | addr=%d | instr=%d | mem=%d", $time, instr_state, bus_slct, bus, ld_addr, ld_instr, ld_a, a, b, pc, addr, instr, mem_data);
+        if ((instr_state[0] & instr_state[1]) | reset_instr_state)
+            $display("\n");
     end
 
 endmodule;
@@ -168,8 +222,20 @@ module memory_mock (
         mem[0] = 8'd0;
 
         // LDA 7
-        mem[1] = 8'd0;
-        mem[2] = 8'd7;
+        mem[1] = `INSTR_LDA;
+        mem[2] = 8'd4;
+
+        // LDB 100
+        mem[3] = `INSTR_LDB;
+        mem[4] = 8'd100;
+
+        // ADDB
+        mem[5] = `INSTR_ADD_B;
+
+        // SUB 20
+        mem[6] = `INSTR_SUB_IMD;
+        mem[7] = 8'd20;
+
     end
 
 endmodule
@@ -185,7 +251,7 @@ module cpu_tb;
     end
 
     initial begin
-        #100;
+        #200;
         $finish;
     end
 endmodule
