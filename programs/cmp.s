@@ -1,0 +1,4 @@
+LDA 100
+LDB 5
+ADDB
+JMP 4

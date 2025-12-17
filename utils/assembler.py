@@ -12,7 +12,7 @@ def lexer(file: str) -> Iterator[str]:
         cur_index += 1
 
     # move cur_len until whitespace
-    while cur_index + cur_len < len(file):
+    while cur_index < len(file):
         while (
             cur_index + cur_len < len(file)
             and file[cur_index + cur_len] not in WHITESPACE
@@ -49,6 +49,7 @@ def assemble(tokens: Iterator[str]) -> bytearray:
         "ADDB": b"\x03",
         "SUB_IMD": b"\x04",
         "SUBB": b"\x05",
+        "JMP": b"\x06",
     }
 
     out = bytearray([0] * 256)
