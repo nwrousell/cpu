@@ -1,0 +1,3 @@
+LDA 20
+SUB_IMD 20
+JNE 2

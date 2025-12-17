@@ -7,9 +7,16 @@ def lexer(file: str) -> Iterator[str]:
     cur_index = 0
     cur_len = 1
 
-    # skip initial whitespace
-    while cur_index < len(file) and file[cur_index] in WHITESPACE:
-        cur_index += 1
+    # skip whitespace + comments
+    while cur_index < len(file) and (
+        file[cur_index] in WHITESPACE or file[cur_index] == ";"
+    ):
+        while cur_index < len(file) and file[cur_index] in WHITESPACE:
+            cur_index += 1
+        if cur_index < len(file) and file[cur_index] == ";":
+            while cur_index < len(file) and file[cur_index] != "\n":
+                cur_index += 1
+            cur_index += 1  # skip newline
 
     # move cur_len until whitespace
     while cur_index < len(file):
@@ -24,8 +31,14 @@ def lexer(file: str) -> Iterator[str]:
         # move cur_index up, skipping whitespaces
         cur_index += cur_len
         cur_len = 1
+        # skip whitespace + comments
         while cur_index < len(file) and file[cur_index] in WHITESPACE:
-            cur_index += 1
+            while cur_index < len(file) and file[cur_index] in WHITESPACE:
+                cur_index += 1
+            if cur_index < len(file) and file[cur_index] == ";":
+                while cur_index < len(file) and file[cur_index] != "\n":
+                    cur_index += 1
+                cur_index += 1  # skip newline
 
 
 def operand_str_to_byte(op: str) -> bytes:
@@ -50,6 +63,14 @@ def assemble(tokens: Iterator[str]) -> bytearray:
         "SUB_IMD": b"\x04",
         "SUBB": b"\x05",
         "JMP": b"\x06",
+        "JEQ": b"\x07",
+        "JNE": b"\x08",
+        "JGT": b"\x09",
+        "JLT": b"\x0a",
+        "JGE": b"\x0b",
+        "JLE": b"\x0c",
+        "CMP_IMD": b"\x0d",
+        "CMPB": b"\x0e",
     }
 
     out = bytearray([0] * 256)

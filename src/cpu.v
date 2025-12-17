@@ -22,6 +22,14 @@
 `define INSTR_SUB_IMD 8'd4
 `define INSTR_SUB_B 8'd5
 `define INSTR_JMP 8'd6
+`define INSTR_JMP_EQ 8'd7
+`define INSTR_JMP_NEQ 8'd8
+`define INSTR_JMP_GT 8'd9
+`define INSTR_JMP_LT 8'd10
+`define INSTR_JMP_GTE 8'd11
+`define INSTR_JMP_LTE 8'd12
+`define INSTR_CMP_IMD 8'd13
+`define INSTR_CMP_B 8'd14
 
 module cpu(
     input wire clk
@@ -31,10 +39,12 @@ module cpu(
     reg [7:0] pc, instr, addr;
     reg zero_flag;
     reg carry_flag;
+    reg sign_flag;
+    reg overflow_flag;
 
     // wires
-    wire [7:0] bus, alu_out, mem_data;
-    wire zero_out, carry_out;
+    wire signed [7:0] bus, alu_out, mem_data;
+    wire zero, carry, sign, overflow;
 
     // control state
     reg [1:0] instr_state; // intra-instruction step counter
@@ -47,8 +57,10 @@ module cpu(
     // components
     alu alu_inst(
         .result(alu_out),
-        .zero_out(zero_out),
-        .carry_out(carry_out),
+        .zero(zero),
+        .carry(carry),
+        .overflow(overflow),
+        .sign(sign),
         .a(a),
         .b(bus),
         .op(alu_op)
@@ -81,6 +93,8 @@ module cpu(
         instr = 8'd0;
         zero_flag = 0;
         carry_flag = 0;
+        sign_flag = 0;
+        overflow_flag = 0;
         instr_state = `FETCH0;
         bus_slct = `A_OUT;
         alu_op = `ALU_ADD;
@@ -123,6 +137,13 @@ module cpu(
 
             `INSTR0: begin
                 case (instr)
+                    `INSTR_CMP_IMD,
+                    `INSTR_JMP_GT,
+                    `INSTR_JMP_GTE,
+                    `INSTR_JMP_LT,
+                    `INSTR_JMP_LTE,
+                    `INSTR_JMP_EQ,
+                    `INSTR_JMP_NEQ,
                     `INSTR_JMP,
                     `INSTR_ADD_IMD,
                     `INSTR_SUB_IMD,
@@ -145,6 +166,13 @@ module cpu(
                         // a - b -> a
                         bus_slct = `B_OUT;
                         ld_a = 1;
+                        alu_op = `ALU_SUB;
+                        reset_instr_state = 1;
+                    end
+
+                    `INSTR_CMP_B: begin
+                        // a - b, only set flags
+                        bus_slct = `B_OUT;
                         alu_op = `ALU_SUB;
                         reset_instr_state = 1;
                     end
@@ -183,10 +211,77 @@ module cpu(
                         incr_pc = 1;
                     end
 
+                    `INSTR_CMP_IMD: begin
+                        // a - mem, only set flags
+                        bus_slct = `MEM_OUT;
+                        alu_op = `ALU_SUB;
+                        incr_pc = 1;
+                    end
+
                     `INSTR_JMP: begin
                         // mem -> pc
                         bus_slct = `MEM_OUT;
                         ld_pc = 1;
+                    end
+
+                    `INSTR_JMP_EQ: begin
+                        // Z ? mem -> pc : pc++
+                        if (zero_flag) begin
+                            bus_slct = `MEM_OUT;
+                            ld_pc = 1;
+                        end else begin
+                            incr_pc = 1;
+                        end
+                    end
+
+                    `INSTR_JMP_NEQ: begin
+                        // Z ? pc++ : mem -> pc
+                        if (zero_flag) begin
+                            incr_pc = 1;
+                        end else begin
+                            bus_slct = `MEM_OUT;
+                            ld_pc = 1;
+                        end
+                    end
+
+                    `INSTR_JMP_LT: begin
+                        // S ^ O ? mem -> pc : pc++
+                        if (sign_flag ^ overflow_flag) begin
+                            bus_slct = `MEM_OUT;
+                            ld_pc = 1;
+                        end else begin
+                            incr_pc = 1;
+                        end
+                    end
+
+                    `INSTR_JMP_LTE: begin
+                        // (S ^ O) | Z ? mem -> pc : pc++
+                        if ((sign_flag ^ overflow_flag) | zero_flag) begin
+                            bus_slct = `MEM_OUT;
+                            ld_pc = 1;
+                        end else begin
+                            incr_pc = 1;
+                        end
+                    end
+
+                    `INSTR_JMP_GT: begin
+                        // ~(S ^ O) & ~Z ? mem -> pc : pc++
+                        if (!(sign_flag ^ overflow_flag) & !zero_flag) begin
+                            bus_slct = `MEM_OUT;
+                            ld_pc = 1;
+                        end else begin
+                            incr_pc = 1;
+                        end
+                    end
+
+                    `INSTR_JMP_GTE: begin
+                        // ~(S ^ O) ? mem -> pc : pc++
+                        if (!(sign_flag ^ overflow_flag)) begin
+                            bus_slct = `MEM_OUT;
+                            ld_pc = 1;
+                        end else begin
+                            incr_pc = 1;
+                        end
                     end
                 endcase
             end
@@ -214,12 +309,14 @@ module cpu(
             pc <= pc + 1;
 
         if (alu_op) begin
-            zero_flag <= zero_out;
-            carry_flag <= carry_out;
+            zero_flag <= zero;
+            carry_flag <= carry;
+            sign_flag <= sign;
+            overflow_flag <= overflow;
         end
 
-        $display("t=%0d | instr_state=%d | bus_slct=%d | bus=%d | ld_addr=%d | ld_instr=%d | ld_pc=%d | ld_a=%d | a=%0d | b=%0d | pc=%0d | addr=%0d | instr=%0d | mem=%0d | Z=%d | C=%d | alu_op=%d",
-                  $time, instr_state, bus_slct, bus, ld_addr, ld_instr, ld_pc, ld_a, a, b, pc, addr, instr, mem_data, zero_flag, carry_flag, alu_op);
+        $display("t=%0d | instr_state=%d | bus_slct=%d | bus=%d | ld_addr=%d | ld_instr=%d | ld_pc=%d | ld_a=%d | a=%0d | b=%0d | pc=%0d | addr=%0d | instr=%0d | mem=%0d | Z=%d C=%d S=%d O=%d | alu_op=%d",
+                  $time, instr_state, bus_slct, bus, ld_addr, ld_instr, ld_pc, ld_a, a, b, pc, addr, instr, mem_data, zero_flag, carry_flag, sign_flag, overflow_flag, alu_op);
         if ((instr_state[0] & instr_state[1]) | reset_instr_state)
             $display("\n");
     end
@@ -254,7 +351,7 @@ module cpu_tb;
     end
 
     initial begin
-        #400;
+        #600;
         $finish;
     end
 endmodule

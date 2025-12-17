@@ -4,8 +4,10 @@
 
 module alu(
     output [7:0] result,
-    output zero_out,
-    output carry_out,
+    output zero,
+    output carry,
+    output overflow,
+    output sign,
     input [7:0] a,
     input [7:0] b,
     input [2:0] op // 0 - addition, 1 - subtraction, 2 - passthrough
@@ -13,7 +15,7 @@ module alu(
 
     wire [7:0] sum;
     wire [7:0] difference;
-    wire add_carry, sub_carry;
+    wire add_carry, sub_carry, effective_b_msb;
 
     ripple_adder_8bit adder(
         .sum(sum),
@@ -43,8 +45,13 @@ module alu(
         .slct(op)
     );
 
-  assign carry_out = (op == `ALU_ADD) ? add_carry : sub_carry;
-  assign zero_out = result == 8'd0;
+  // flag signals
+  assign carry = (op == `ALU_ADD) ? add_carry : sub_carry;
+  assign zero = result == 8'd0;
+  assign sign = result[7];
+  
+  assign effective_b_msb = (op == `ALU_SUB) ? !b[7] : b[7];
+  assign overflow = !(a[7] ^ effective_b_msb) & (a[7] == !result[7]);
 
 endmodule
 
@@ -54,12 +61,14 @@ module alu_tb;
   reg signed [7:0] a, b;
   reg [2:0] op;
   wire signed [7:0] result;
-  wire zero_out, carry_out;
+  wire zero, carry, sign, overflow;
 
   alu dut(
     .result(result),
-    .zero_out(zero_out),
-    .carry_out(carry_out),
+    .zero(zero),
+    .carry(carry),
+    .sign(sign),
+    .overflow(overflow),
     .a(a),
     .b(b),
     .op(op)
@@ -88,11 +97,12 @@ module alu_tb;
     #10 op = `ALU_SUB;
     #10 a = 8'd0;   b = 8'd0;   op = `ALU_ADD;  // zero case
     #10 op = `ALU_SUB;
+    #10 a = 8'd129; b = 8'd200; op = `ALU_ADD; // negative overflow
     #10 $finish;
   end
 
   always @(a or b or op) begin
-    $strobe("t=%0d | a=%d b=%d op=%d | result=%d | zero=%b carry=%b", 
-            $time, a, b, op, result, zero_out, carry_out);
+    $strobe("t=%0d | a=%d b=%d op=%d | result=%d | zero=%b carry=%b sign=%b overflow=%b", 
+            $time, a, b, op, result, zero, carry, sign, overflow);
   end
 endmodule
