@@ -6,8 +6,8 @@
 
 // bus select
 `define A_OUT 3'd0
-`define B_OUT 3'd1
-`define UNUSED2 3'd2
+`define X_OUT 3'd1
+`define Y_OUT 3'd2
 `define MEM_OUT 3'd3
 `define INSTR_OUT 3'd4
 `define ADDR_OUT 3'd5
@@ -16,11 +16,11 @@
 
 // instructions
 `define INSTR_LDA 8'd0
-`define INSTR_LDB 8'd1
+`define INSTR_LDX 8'd1
 `define INSTR_ADD_IMD 8'd2
-`define INSTR_ADD_B 8'd3
+`define INSTR_ADD_X 8'd3
 `define INSTR_SUB_IMD 8'd4
-`define INSTR_SUB_B 8'd5
+`define INSTR_SUB_X 8'd5
 `define INSTR_JMP 8'd6
 `define INSTR_JMP_EQ 8'd7
 `define INSTR_JMP_NEQ 8'd8
@@ -29,13 +29,17 @@
 `define INSTR_JMP_GTE 8'd11
 `define INSTR_JMP_LTE 8'd12
 `define INSTR_CMP_IMD 8'd13
-`define INSTR_CMP_B 8'd14
+`define INSTR_CMP_X 8'd14
+`define INSTR_TAX 8'd15
+`define INSTR_TXA 8'd16
+`define INSTR_TAY 8'd17
+`define INSTR_TYA 8'd18
 
 module cpu(
     input wire clk
 );
     // registers
-    reg signed [7:0] a, b;
+    reg signed [7:0] a, x, y;
     reg [7:0] pc, instr, addr;
     reg zero_flag;
     reg carry_flag;
@@ -52,7 +56,7 @@ module cpu(
     // control signals
     reg [2:0] bus_slct;
     reg [2:0] alu_op;
-    reg ld_a, ld_b, ld_addr, ld_instr, ld_pc, incr_pc, reset_instr_state;
+    reg ld_a, ld_x, ld_y, ld_addr, ld_instr, ld_pc, incr_pc, reset_instr_state;
 
     // components
     alu alu_inst(
@@ -75,8 +79,8 @@ module cpu(
     mux_8way bus_mux(
         .out(bus),
         .a(a),
-        .b(b),
-        .c(8'd0),
+        .b(x),
+        .c(y),
         .d(mem_data),
         .e(instr),
         .f(addr),
@@ -87,7 +91,8 @@ module cpu(
 
     initial begin
         a = 8'd0;
-        b = 8'd0;
+        x = 8'd0;
+        y = 8'd0;
         pc = 8'd0;
         addr = 8'd0;
         instr = 8'd0;
@@ -99,7 +104,8 @@ module cpu(
         bus_slct = `A_OUT;
         alu_op = `ALU_ADD;
         ld_a = 0;
-        ld_b = 0;
+        ld_x = 0;
+        ld_y = 0;
         ld_addr = 0;
         ld_instr = 0;
         ld_pc = 0;
@@ -111,7 +117,8 @@ module cpu(
     always @(*) begin 
         // set defaults
         ld_a = 0;
-        ld_b = 0;
+        ld_x = 0;
+        ld_y = 0;
         ld_addr = 0;
         ld_instr = 0;
         ld_pc = 0;
@@ -147,32 +154,60 @@ module cpu(
                     `INSTR_JMP,
                     `INSTR_ADD_IMD,
                     `INSTR_SUB_IMD,
-                    `INSTR_LDB,
+                    `INSTR_LDX,
                     `INSTR_LDA: begin
                         // pc -> addr (mem_data becomes first operand)
                         bus_slct = `PC_OUT;
                         ld_addr = 1;
                     end
 
-                    `INSTR_ADD_B: begin
-                        // a + b -> a
-                        bus_slct = `B_OUT;
+                    `INSTR_TAX: begin
+                        // a -> x
+                        bus_slct = `A_OUT;
+                        ld_x = 1;
+                        reset_instr_state = 1;
+                    end
+
+                    `INSTR_TXA: begin
+                        // x -> a
+                        bus_slct = `X_OUT;
+                        ld_a = 1;
+                        reset_instr_state = 1;
+                    end
+
+                    `INSTR_TAY: begin
+                        // a -> y
+                        bus_slct = `A_OUT;
+                        ld_y = 1;
+                        reset_instr_state = 1;
+                    end
+
+                    `INSTR_TYA: begin
+                        // y -> a
+                        bus_slct = `Y_OUT;
+                        ld_a = 1;
+                        reset_instr_state = 1;
+                    end
+
+                    `INSTR_ADD_X: begin
+                        // a + x -> a
+                        bus_slct = `X_OUT;
                         ld_a = 1;
                         alu_op = `ALU_ADD;
                         reset_instr_state = 1;
                     end
 
-                    `INSTR_SUB_B: begin
-                        // a - b -> a
-                        bus_slct = `B_OUT;
+                    `INSTR_SUB_X: begin
+                        // a - x -> a
+                        bus_slct = `X_OUT;
                         ld_a = 1;
                         alu_op = `ALU_SUB;
                         reset_instr_state = 1;
                     end
 
-                    `INSTR_CMP_B: begin
-                        // a - b, only set flags
-                        bus_slct = `B_OUT;
+                    `INSTR_CMP_X: begin
+                        // a - x, only set flags
+                        bus_slct = `X_OUT;
                         alu_op = `ALU_SUB;
                         reset_instr_state = 1;
                     end
@@ -188,10 +223,10 @@ module cpu(
                         incr_pc = 1;
                     end
 
-                    `INSTR_LDB: begin
-                        // mem -> b
+                    `INSTR_LDX: begin
+                        // mem -> x
                         bus_slct = `MEM_OUT;
-                        ld_b = 1;
+                        ld_x = 1;
                         incr_pc = 1;
                     end
 
@@ -296,8 +331,10 @@ module cpu(
         if (ld_a)
             a <= alu_out;
 
-        if (ld_b)
-            b <= bus;
+        if (ld_x)
+            x <= bus;
+        if (ld_y)
+            y <= bus;
         if (ld_addr)
             addr <= bus;
         if (ld_instr)
@@ -315,8 +352,8 @@ module cpu(
             overflow_flag <= overflow;
         end
 
-        $display("t=%0d | instr_state=%d | bus_slct=%d | bus=%d | ld_addr=%d | ld_instr=%d | ld_pc=%d | ld_a=%d | a=%0d | b=%0d | pc=%0d | addr=%0d | instr=%0d | mem=%0d | Z=%d C=%d S=%d O=%d | alu_op=%d",
-                  $time, instr_state, bus_slct, bus, ld_addr, ld_instr, ld_pc, ld_a, a, b, pc, addr, instr, mem_data, zero_flag, carry_flag, sign_flag, overflow_flag, alu_op);
+        $display("t=%0d | instr_state=%d | bus_slct=%d | bus=%d | ld_addr=%d | ld_instr=%d | ld_pc=%d | ld_a=%d | a=%0d | x=%0d | y=%0d | pc=%0d | addr=%0d | instr=%0d | mem=%0d | Z=%d C=%d S=%d O=%d | alu_op=%d",
+                  $time, instr_state, bus_slct, bus, ld_addr, ld_instr, ld_pc, ld_a, a, x, y, pc, addr, instr, mem_data, zero_flag, carry_flag, sign_flag, overflow_flag, alu_op);
         if ((instr_state[0] & instr_state[1]) | reset_instr_state)
             $display("\n");
     end

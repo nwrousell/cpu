@@ -57,11 +57,11 @@ def operand_str_to_byte(op: str) -> bytes:
 def assemble(tokens: Iterator[str]) -> bytearray:
     INSTR_TO_BYTE = {
         "LDA": b"\x00",
-        "LDB": b"\x01",
+        "LDX": b"\x01",
         "ADD_IMD": b"\x02",
-        "ADDB": b"\x03",
+        "ADDX": b"\x03",
         "SUB_IMD": b"\x04",
-        "SUBB": b"\x05",
+        "SUBX": b"\x05",
         "JMP": b"\x06",
         "JEQ": b"\x07",
         "JNE": b"\x08",
@@ -70,7 +70,11 @@ def assemble(tokens: Iterator[str]) -> bytearray:
         "JGE": b"\x0b",
         "JLE": b"\x0c",
         "CMP_IMD": b"\x0d",
-        "CMPB": b"\x0e",
+        "CMPX": b"\x0e",
+        "TAX": b"\x0f",
+        "TXA": b"\x10",
+        "TAY": b"\x11",
+        "TYA": b"\x12",
     }
 
     out = bytearray([0] * 256)
