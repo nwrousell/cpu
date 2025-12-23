@@ -14,7 +14,7 @@ module sub_8bit(
     );
 endmodule
 
-
+`ifndef SYNTHESIS
 module sub_tb;
   reg [7:0] a_8bit, b_8bit;
   wire [7:0] difference;
@@ -42,3 +42,4 @@ module sub_tb;
             $time, a_8bit, b_8bit, difference, carry_out_8bit);
   end
 endmodule
+`endif

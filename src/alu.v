@@ -55,8 +55,7 @@ module alu(
 
 endmodule
 
-
-
+`ifndef SYNTHESIS
 module alu_tb;
   reg signed [7:0] a, b;
   reg [2:0] op;
@@ -106,3 +105,4 @@ module alu_tb;
             $time, a, b, op, result, zero, carry, sign, overflow);
   end
 endmodule
+`endif

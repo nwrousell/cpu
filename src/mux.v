@@ -5,7 +5,7 @@ module mux_2way(
     input select
 );
     assign result = (a & ~{8{select}}) | (b & {8{select}});
-endmodule;
+endmodule
 
 module mux_8way(
     output [7:0] out,
@@ -27,8 +27,9 @@ module mux_8way(
     assign pass_h = h & {8{slct[0] & slct[1] & slct[2]}};
 
     assign out = pass_a | pass_b | pass_c | pass_d | pass_e | pass_f | pass_g | pass_h;
-endmodule;
+endmodule
 
+`ifndef SYNTHESIS
 module mux_tb;
     reg [7:0] a, b, c, d, e, f, g, h;
     reg [2:0] slct;
@@ -59,3 +60,4 @@ module mux_tb;
                 $time, slct, result, expected);
     end
 endmodule
+`endif

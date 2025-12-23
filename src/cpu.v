@@ -374,11 +374,15 @@ module cpu(
                         reset_instr_state = 1;
                     end
 
+                    `ifndef SYNTHESIS
                     default: $fatal(1, "instr %d arrived at instr_state %d", instr, instr_state);
+                    `endif
                 endcase
             end
 
+            `ifndef SYNTHESIS
             default: $fatal(1, "invalid instr state machine: %d", instr_state);
+            `endif
         endcase
     end
 
@@ -419,8 +423,9 @@ module cpu(
         `endif
     end
 
-endmodule;
+endmodule
 
+`ifndef SYNTHESIS
 module memory_mock (
     input wire [7:0] addr, data_in,
     input wire write_enable,
@@ -490,3 +495,4 @@ module cpu_tb;
         end
     end
 endmodule
+`endif
