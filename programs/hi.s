@@ -1,0 +1,28 @@
+LDA ' '
+
+LDA 'H'
+STA 0x80
+LDA 'e'
+STA 0x81
+LDA 'l'
+STA 0x82
+LDA 'l'
+STA 0x83
+LDA 'o'
+STA 0x84
+LDA ' '
+STA 0x85
+LDA 'w'
+STA 0x86
+LDA 'o'
+STA 0x87
+LDA 'r'
+STA 0x88
+LDA 'l'
+STA 0x89
+LDA 'd'
+STA 0x8a
+LDA '!'
+STA 0x8b
+DSP
+HLT
