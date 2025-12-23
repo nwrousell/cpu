@@ -5,3 +5,4 @@ LDA 18
 TXA
 LDA 18
 TYA
+HLT

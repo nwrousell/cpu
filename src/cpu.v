@@ -34,9 +34,11 @@
 `define INSTR_TXA 8'd16
 `define INSTR_TAY 8'd17
 `define INSTR_TYA 8'd18
+`define INSTR_HLT 8'd19
 
 module cpu(
-    input wire clk
+    input wire clk,
+    output wire hlt
 );
     // registers
     reg signed [7:0] a, x, y;
@@ -113,6 +115,8 @@ module cpu(
         reset_instr_state = 0;
     end
 
+    assign hlt = instr == `INSTR_HLT;
+
     // compute control signals based on instr reg/instr_state (even though they're regs, will synthesize to just wires)
     always @(*) begin 
         // set defaults
@@ -159,6 +163,10 @@ module cpu(
                         // pc -> addr (mem_data becomes first operand)
                         bus_slct = `PC_OUT;
                         ld_addr = 1;
+                    end
+
+                    `INSTR_HLT: begin
+                        // no op, halting is handled through continuous assignment
                     end
 
                     `INSTR_TAX: begin
@@ -379,16 +387,15 @@ endmodule
 
 module cpu_tb;
     reg clk;
+    wire htl;
 
-    cpu my_cpu(clk);
+    cpu my_cpu(clk, hlt);
 
-    initial begin
+    initial begin : clk_gen
         clk = 0;
-        forever #5 clk = ~clk;
-    end
-
-    initial begin
-        #600;
-        $finish;
+        forever begin
+            #5 clk = ~clk;
+            if (clk & hlt) disable clk_gen;
+        end
     end
 endmodule

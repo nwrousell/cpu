@@ -1,2 +1,3 @@
 LDA 100
 SUB_IMD 50
+HLT

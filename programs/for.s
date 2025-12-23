@@ -9,3 +9,4 @@ JGE 10
 ADD_IMD 1
 
 JMP 2
+HLT

@@ -75,6 +75,7 @@ def assemble(tokens: Iterator[str]) -> bytearray:
         "TXA": b"\x10",
         "TAY": b"\x11",
         "TYA": b"\x12",
+        "HLT": b"\x13",
     }
 
     out = bytearray([0] * 256)

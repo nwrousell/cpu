@@ -1,12 +1,14 @@
-; computes fibonacci numbers
+; computes fibonacci numbers in an infinite loop
 
-; everything flows through A
+LDA 1
+LDX 1
 
-LDA_IMD 1
-LDB_IMD 1
-LDX_IMD 0 ; used as tmp
-
+ADDX
+TAY
+ADDX
 TAX
-ADDA_B
-TAB
+TYA
+JMP 4
+
+
 
